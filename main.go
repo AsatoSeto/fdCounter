@@ -14,7 +14,6 @@ import (
 )
 
 type processStruct struct {
-	Pid     string
 	Command string
 	Count   int
 }
