@@ -13,6 +13,15 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+type parseStruct struct {
+	COMMANDStart, PIDStart, TIDStart,
+	TASKCMDStart, USERStart, FDStart,
+	TYPEStart, DEVICEStart, SIZEOFFStart,
+	NODEStart, NAMEStart, COMMANDEnd,
+	PIDEnd, TIDEnd, TASKCMDEnd,
+	USEREnd, FDEnd, TYPEEnd,
+	DEVICEEnd, SIZEOFFEnd, NODEEnd int
+}
 type processStruct struct {
 	Command string
 	Count   int
@@ -167,10 +176,6 @@ func parseRowString(row string) []string {
 		return collSlice
 	}
 	return nil
-}
-
-type parseStruct struct {
-	COMMANDStart, PIDStart, TIDStart, TASKCMDStart, USERStart, FDStart, TYPEStart, DEVICEStart, SIZEOFFStart, NODEStart, NAMEStart, COMMANDEnd, PIDEnd, TIDEnd, TASKCMDEnd, USEREnd, FDEnd, TYPEEnd, DEVICEEnd, SIZEOFFEnd, NODEEnd int
 }
 
 func getCollCoordinates(row string) parseStruct {
