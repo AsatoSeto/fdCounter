@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"sort"
@@ -154,9 +155,14 @@ func getListPIDFD() {
 		}
 	}
 	sort.Slice(tableData, func(i, j int) bool {
-		iint, _ := strconv.Atoi(tableData[i][3])
-		jint, _ := strconv.Atoi(tableData[j][3])
-
+		iint, err := strconv.Atoi(tableData[i][3])
+		if err != nil {
+			log.Fatal(fmt.Sprintf("getListPIDFD convert string to int error: %s", err))
+		}
+		jint, err := strconv.Atoi(tableData[j][3])
+		if err != nil {
+			log.Fatal(fmt.Sprintf("getListPIDFD convert string to int error#2: %s", err))
+		}
 		return iint > jint
 	})
 	fmt.Println("Count of opened file descriptors by pid:")
