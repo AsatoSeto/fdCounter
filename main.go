@@ -188,35 +188,56 @@ func getCollCoordinates(row string) parseStruct {
 	coordinates := parseStruct{
 		COMMANDStart: 0,
 	}
-	for i := strings.Index(row, "COMMAND"); row[i] != 32; i++ {
-		coordinates.COMMANDEnd = i + 3
+	if strings.Contains(row, "COMMAND") {
+		for i := strings.Index(row, "COMMAND"); row[i] != 32; i++ {
+			coordinates.COMMANDEnd = i + 3
+		}
 	}
-	for i := strings.Index(row, "PID"); row[i] != 32; i++ {
-		coordinates.PIDEnd = i + 1
+
+	if strings.Contains(row, "PID") {
+		for i := strings.Index(row, "PID"); row[i] != 32; i++ {
+			coordinates.PIDEnd = i + 1
+		}
 	}
-	for i := strings.Index(row, "TID"); row[i] != 32; i++ {
-		coordinates.TIDEnd = i + 1
+	if strings.Contains(row, "TID") {
+		for i := strings.Index(row, "TID"); (row[i] != 32) || i < len(row); i++ {
+			coordinates.TIDEnd = i + 1
+		}
 	}
-	for i := strings.Index(row, "TASKCMD"); row[i] != 32; i++ {
-		coordinates.TASKCMDEnd = i + 3
+	if strings.Contains(row, "TASKCMD") {
+		for i := strings.Index(row, "TASKCMD"); row[i] != 32; i++ {
+			coordinates.TASKCMDEnd = i + 3
+		}
 	}
-	for i := strings.Index(row, "USER"); row[i] != 32; i++ {
-		coordinates.USEREnd = i + 3
+	if strings.Contains(row, "USER") {
+		for i := strings.Index(row, "USER"); row[i] != 32; i++ {
+			coordinates.USEREnd = i + 3
+		}
 	}
-	for i := strings.Index(row, "FD"); row[i] != 32; i++ {
-		coordinates.FDEnd = i + 3
+	if strings.Contains(row, "FD") {
+		for i := strings.Index(row, "FD"); row[i] != 32; i++ {
+			coordinates.FDEnd = i + 3
+		}
 	}
-	for i := strings.Index(row, "TYPE"); row[i] != 32; i++ {
-		coordinates.TYPEEnd = i + 1
+	if strings.Contains(row, "TYPE") {
+		for i := strings.Index(row, "TYPE"); row[i] != 32; i++ {
+			coordinates.TYPEEnd = i + 1
+		}
 	}
-	for i := strings.Index(row, "DEVICE"); row[i] != 32; i++ {
-		coordinates.DEVICEEnd = i + 3
+	if strings.Contains(row, "DEVICE") {
+		for i := strings.Index(row, "DEVICE"); row[i] != 32; i++ {
+			coordinates.DEVICEEnd = i + 3
+		}
 	}
-	for i := strings.Index(row, "SIZE/OFF"); row[i] != 32; i++ {
-		coordinates.SIZEOFFEnd = i + 3
+	if strings.Contains(row, "SIZE") {
+		for i := strings.Index(row, "SIZE/OFF"); row[i] != 32; i++ {
+			coordinates.SIZEOFFEnd = i + 3
+		}
 	}
-	for i := strings.Index(row, "NODE"); row[i] != 32; i++ {
-		coordinates.NODEEnd = i + 3
+	if strings.Contains(row, "NODE") {
+		for i := strings.Index(row, "NODE"); row[i] != 32; i++ {
+			coordinates.NODEEnd = i + 3
+		}
 	}
 	coordinates.PIDStart = coordinates.COMMANDEnd
 	coordinates.TIDStart = coordinates.PIDEnd
