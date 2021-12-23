@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,6 +29,8 @@ type processStruct struct {
 	Count   int
 }
 
+const macOS = "darwin"
+
 var coord parseStruct
 
 func main() {
@@ -36,9 +39,12 @@ func main() {
 	listFDFlag := flag.Bool("l", false, "list file descriptors count for all process")
 
 	flag.Parse()
-
 	if pidFlag != nil && *pidFlag != 0 {
-		fmt.Printf("Opened file descriptors for pid %d: %d\n", *pidFlag, countByDirectory(*pidFlag))
+		if runtime.GOOS == macOS {
+			fmt.Printf("Opened file descriptors for pid %d: %d\n", *pidFlag, countPIDsOpenFiles(*pidFlag))
+		} else {
+			fmt.Printf("Opened file descriptors for pid %d: %d\n", *pidFlag, countByDirectory(*pidFlag))
+		}
 	} else if allFDFlag != nil && *allFDFlag {
 		// log.Println(countAllPids())
 		fmt.Printf("Opened file descriptors: %d\n", countOpenFiles())
@@ -60,6 +66,15 @@ func countByDirectory(pid int) int64 {
 
 func countOpenFiles() int64 {
 	out, err := exec.Command("/bin/sh", "-c", "lsof -n").Output()
+	if err != nil {
+		fmt.Println(err.Error())
+		return 0
+	}
+	return int64(len(strings.Split(string(out), "\n")) - 1)
+}
+
+func countPIDsOpenFiles(pid int) int64 {
+	out, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("lsof -p %d", pid)).Output()
 	if err != nil {
 		fmt.Println(err.Error())
 		return 0
