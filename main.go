@@ -46,9 +46,9 @@ func main() {
 			fmt.Printf("Opened file descriptors for pid %d: %d\n", *pidFlag, countByDirectory(*pidFlag))
 		}
 	} else if allFDFlag != nil && *allFDFlag {
-		// log.Println(countAllPids())
 		fmt.Printf("Opened file descriptors: %d\n", countOpenFiles())
 	} else if *listFDFlag {
+
 		getListPIDFD()
 	} else {
 		fmt.Printf("Invalid parameter. Use the ``-h'' option to get more help information.\n")
@@ -121,148 +121,90 @@ func getPids() []string {
 	return strings.Split(string(out), "\n")[1:]
 }
 
+type commandStruct struct {
+	command string
+	pid     string
+	data    []fdStruct
+}
+type fdStruct struct {
+	fd    string
+	ftype string
+}
+
 func getListPIDFD() {
-	out, err := exec.Command("/bin/sh", "-c", "lsof -n").Output()
+	out, err := exec.Command("/bin/sh", "-c", "lsof -F ct").Output()
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-	var parsedSlice []string
-	pidOfCount := make(map[string]map[string]processStruct)
 	rowsSlice := strings.Split(string(out), "\n")
+	commandMap := make(map[string]commandStruct)
+	currentPID := ""
+	currentCommandStruct := fdStruct{}
 	for i := range rowsSlice {
-		if i == 0 {
-			coord = getCollCoordinates(rowsSlice[i])
+		fieldType, val := parseFRowString(rowsSlice[i])
+		switch fieldType {
+		case 0:
+			commandMap[val] = commandStruct{pid: val}
+			currentPID = val
+		case 1:
+			if mval, ok := commandMap[currentPID]; ok {
+				mval.command = val
+				commandMap[currentPID] = mval
+			}
+		case 2:
+			currentCommandStruct = fdStruct{fd: val}
+		case 3:
+			currentCommandStruct.ftype = val
+			if mval, ok := commandMap[currentPID]; ok {
+				mval.data = append(mval.data, currentCommandStruct)
+				commandMap[currentPID] = mval
+			}
+		case -1:
 			continue
 		}
-		parsedSlice = parseRowString(rowsSlice[i])
-		if parsedSlice == nil {
-			continue
+	}
+	outData := make([][]string, 0)
+	for _, v := range commandMap {
+		fTypeCount := make(map[string]int)
+		for _, vd := range v.data {
+			fTypeCount[vd.ftype]++
 		}
-		if strings.TrimSpace(parsedSlice[2]) == "" {
-			parsedSlice[2] = "unknown"
-		}
-		if tmp, ok := pidOfCount[parsedSlice[1]]; ok {
-			if tmp1, ok := tmp[parsedSlice[2]]; ok {
-				tmp1.Count++
-				tmp[parsedSlice[2]] = tmp1
-			} else {
-				pidOfCount[parsedSlice[1]][parsedSlice[2]] = processStruct{
-					Command: parsedSlice[0],
-					Count:   1,
-				}
-			}
-			pidOfCount[parsedSlice[1]] = tmp
-
-		} else {
-			tmp := make(map[string]processStruct)
-			tmp[parsedSlice[2]] = processStruct{
-				Command: parsedSlice[0],
-				Count:   1,
-			}
-			pidOfCount[parsedSlice[1]] = tmp
+		for key, ft := range fTypeCount {
+			outData = append(outData, []string{v.command, v.pid, key, strconv.Itoa(ft)})
 		}
 	}
-	tableData := make([][]string, 0)
-	for key := range pidOfCount {
-		for key2 := range pidOfCount[key] {
-			tableData = append(tableData, []string{pidOfCount[key][key2].Command, key, key2, strconv.Itoa(pidOfCount[key][key2].Count)})
-		}
-	}
-	sort.Slice(tableData, func(i, j int) bool {
-		iint, err := strconv.Atoi(tableData[i][3])
+	sort.Slice(outData, func(i, j int) bool {
+		iint, err := strconv.Atoi(outData[i][3])
 		if err != nil {
 			log.Fatal(fmt.Sprintf("getListPIDFD convert string to int error: %s", err))
 		}
-		jint, err := strconv.Atoi(tableData[j][3])
+		jint, err := strconv.Atoi(outData[j][3])
 		if err != nil {
 			log.Fatal(fmt.Sprintf("getListPIDFD convert string to int error#2: %s", err))
 		}
 		return iint > jint
 	})
-	fmt.Println("Count of opened file descriptors by pid:")
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"COMMAND", "PID", "FDTYPE", "COUNT"})
-	table.AppendBulk(tableData)
+	table.AppendBulk(outData)
 	table.Render()
 }
 
-func parseRowString(row string) []string {
-	if len(row) > coord.COMMANDEnd {
-		collSlice := make([]string, 3)
-
-		collSlice[0] = strings.TrimSpace(row[:coord.COMMANDEnd])
-		collSlice[1] = strings.TrimSpace(row[coord.PIDStart:coord.PIDEnd])
-		collSlice[2] = strings.TrimSpace(row[coord.TYPEStart:coord.TYPEEnd])
-		return collSlice
+func parseFRowString(row string) (int8, string) {
+	if len(row) == 0 {
+		return -1, ""
 	}
-	return nil
-}
-
-func getCollCoordinates(row string) parseStruct {
-	coordinates := parseStruct{
-		COMMANDStart: 0,
+	switch string(row[0]) {
+	case "c":
+		return 1, row[1:]
+	case "p":
+		return 0, row[1:]
+	case "f":
+		return 2, row[1:]
+	case "t":
+		return 3, row[1:]
+	default:
+		return -1, ""
 	}
-	if strings.Contains(row, "COMMAND") {
-		for i := strings.Index(row, "COMMAND"); row[i] != 32; i++ {
-			coordinates.COMMANDEnd = i + 3
-		}
-	}
-
-	if strings.Contains(row, "PID") {
-		for i := strings.Index(row, "PID"); row[i] != 32; i++ {
-			coordinates.PIDEnd = i + 1
-		}
-	}
-	if strings.Contains(row, "TID") {
-		for i := strings.Index(row, "TID"); (row[i] != 32) || i < len(row); i++ {
-			coordinates.TIDEnd = i + 1
-		}
-	}
-	if strings.Contains(row, "TASKCMD") {
-		for i := strings.Index(row, "TASKCMD"); row[i] != 32; i++ {
-			coordinates.TASKCMDEnd = i + 3
-		}
-	}
-	if strings.Contains(row, "USER") {
-		for i := strings.Index(row, "USER"); row[i] != 32; i++ {
-			coordinates.USEREnd = i + 3
-		}
-	}
-	if strings.Contains(row, "FD") {
-		for i := strings.Index(row, "FD"); row[i] != 32; i++ {
-			coordinates.FDEnd = i + 3
-		}
-	}
-	if strings.Contains(row, "TYPE") {
-		for i := strings.Index(row, "TYPE"); row[i] != 32; i++ {
-			coordinates.TYPEEnd = i + 1
-		}
-	}
-	if strings.Contains(row, "DEVICE") {
-		for i := strings.Index(row, "DEVICE"); row[i] != 32; i++ {
-			coordinates.DEVICEEnd = i + 3
-		}
-	}
-	if strings.Contains(row, "SIZE") {
-		for i := strings.Index(row, "SIZE/OFF"); row[i] != 32; i++ {
-			coordinates.SIZEOFFEnd = i + 3
-		}
-	}
-	if strings.Contains(row, "NODE") {
-		for i := strings.Index(row, "NODE"); row[i] != 32; i++ {
-			coordinates.NODEEnd = i + 3
-		}
-	}
-	coordinates.PIDStart = coordinates.COMMANDEnd
-	coordinates.TIDStart = coordinates.PIDEnd
-	coordinates.TASKCMDStart = coordinates.TIDEnd
-	coordinates.USERStart = coordinates.TASKCMDEnd
-	coordinates.FDStart = coordinates.USEREnd
-	coordinates.TYPEStart = coordinates.FDEnd
-	coordinates.DEVICEStart = coordinates.TYPEEnd
-	coordinates.SIZEOFFStart = coordinates.DEVICEEnd
-	coordinates.NODEStart = coordinates.SIZEOFFEnd
-	coordinates.NAMEStart = strings.Index(row, "NAME")
-	return coordinates
 }
